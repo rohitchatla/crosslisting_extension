@@ -1,0 +1,581 @@
+var port = chrome.runtime.connect({ name: "app" });
+port.postMessage({ poshmarkintro: "helloposhmark" });
+port.postMessage({ poshmarkintroagent: "helloposhmarkagent" });
+port.onMessage.addListener(function (msg) {
+  if (msg.actionposhmark == "listposhmark") {
+    console.log(msg);
+    setdata();
+    //port.postMessage({poshmarkanswer1: "listingposhmark"})
+  }
+
+  if (msg.actionposhmark == "editposhmark") {
+    console.log(msg);
+    editdata();
+    //port.postMessage({poshmarkanswer1: "listingposhmark"})
+  }
+});
+
+chrome.storage.sync.get("editdata", (value) => {
+  console.log(value.editdata);
+  if (value.editdata.site.to == "poshmark") {
+    crossset();
+  }
+});
+//window.beforeunload(port.postMessage({poshmarkanswer1: "listingposhmark"}));
+
+//if (document.domain == "poshmark.com") {
+function setdata() {
+  setTimeout(() => {
+    chrome.storage.sync.get("data", async (value) => {
+      console.log(value.data);
+      fetch("https://app.hammoq.com/images", {
+        method: "POST",
+        body: JSON.stringify(value.data.paths),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => {
+          return response.json();
+        })
+        .then(async (res) => {
+          console.log(res);
+          let transfer = new DataTransfer();
+          for (let base64String of res) {
+            let img = new Image();
+            img.src = "data:image/jpeg;base64," + base64String;
+            let dim = await new Promise(
+              (resolve) =>
+                (img.onload = () =>
+                  resolve({
+                    w: img.width,
+                    h: img.height,
+                  }))
+            );
+            let canvas = document.createElement("canvas");
+            canvas.width = dim.w;
+            canvas.height = dim.h;
+            canvas.getContext("2d").drawImage(img, 0, 0, dim.w, dim.h);
+            base64String = canvas.toDataURL("image/jpeg").replace(/^.+?,/, "");
+            let chars = atob(base64String);
+            let bytes = new Array(chars.length);
+            for (let i = 0; i < bytes.length; i++)
+              bytes[i] = chars.charCodeAt(i);
+            let byteArray = new Uint8Array(bytes);
+            let blob = new Blob([byteArray], { type: "image/jpeg" });
+            let fileOptions = { type: blob.type, size: blob.size };
+            let name = Math.floor(Math.random() * 100 + 1) + ".jpg";
+            transfer.items.add(new File([blob], name, fileOptions));
+          }
+          let firstImg = $(
+            ".listing-editor__image .listing-editor__edit-overlay"
+          );
+          console.log(firstImg);
+          if (firstImg.length > 0) {
+            console.log("if", firstImg);
+            firstImg.click();
+            let form = await waitForNode(
+              ".listing-editor__modal-image, .image-edit-modal"
+            );
+            let input = form.find('input[type="file"]')[0];
+            input.files = transfer.files;
+          }
+          let input = $('[type="file"]')[0];
+          input.files = transfer.files;
+          $(input).dispatch("change");
+          let imageForm = await waitForNode(
+            ".image-edit-modal, .listing-editor__modal-image",
+            5
+          );
+          let submitButton = await waitForNode(
+            " .btn.btn--primary",
+            5,
+            imageForm
+          );
+          if (submitButton) {
+            let previews = $(".listing-editor__covershot-thumb img");
+            for (let i = 0; i < previews.length; i++) {
+              let preview = previews.eq(i);
+              while (!preview[0].complete) await wait(50);
+            }
+            await wait(500);
+            submitButton.dispatch("click");
+          }
+        });
+      setTimeout(async () => {
+        $('[placeholder="What are you selling? (required)"]')
+          .val(value.data.title)
+          .dispatch("input");
+        $('[placeholder="Describe it! (required)"]')
+          .val(value.data.shortDescription)
+          .dispatch("input");
+        $('[placeholder="Enter the Brand/Designer"]')
+          .val(value.data.brand)
+          .dispatch("input");
+        let select = $('.dropdown__selector [data-et-name="color"]').parent();
+        select.dispatch("click");
+        let list = await waitForNode(".dropdown__menu", 999, select.parent());
+        let colors = list.find("li");
+        for (let i = 0; i < colors.length; i++) {
+          let li = colors.eq(i);
+          let color = li.text().replace(/\s+/g, "").toLowerCase();
+          if (color === value.data.colorShade.toLowerCase())
+            li.dispatch("click");
+        }
+        list.find("button").dispatch("click");
+        await waitForNode('[data-vv-name="originalPrice"]');
+        $('[data-vv-name="originalPrice"]')
+          .val(Math.round(value.data.msrp.replace("$", "")))
+          .dispatch("input");
+        await waitForNode('[data-vv-name="sku"]');
+        $('[data-vv-name="sku"]').val(value.data.sku).dispatch("input");
+        $('[data-vv-name="listingPrice"]')
+          .val(Math.round(value.data.price.replace("$", "")))
+          .dispatch("input");
+        let condButtons = $('h4:contains("Does this item have tags attached?")')
+          .parent()
+          .find("button");
+        if (value.data.condition == "New with tags")
+          condButtons.eq(0).dispatch("click");
+        else condButtons.eq(1).dispatch("click");
+      }, 2000);
+
+      setTimeout(async () => {
+        $('[data-et-name="next"]').dispatch("click");
+      }, 20000);
+
+      setTimeout(async () => {
+        $('[data-et-name="list_item"]').dispatch("click");
+      }, 25000);
+    });
+  }, 1500);
+}
+//}
+
+function editdata() {
+  setTimeout(() => {
+    chrome.storage.sync.get("data", async (value) => {
+      console.log(value.data);
+      // setTimeout(() => {
+      //   for (let i = 0; i < 12; i++) {
+      //     setTimeout(() => {
+      //       document.getElementsByClassName("tc--white")[1].click();
+      //       setTimeout(() => {
+      //         document
+      //           .getElementsByClassName("cursor--pointer td--ul")[0]
+      //           .click();
+      //       }, 500);
+      //     }, 500);
+      //   }
+      // }, 1000);
+      // fetch("https://app.hammoq.com/images", {
+      //   method: "POST",
+      //   body: JSON.stringify(value.data.paths),
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      // })
+      //   .then((response) => {
+      //     return response.json();
+      //   })
+      //   .then(async (res) => {
+      //     console.log(res);
+      //     let transfer = new DataTransfer();
+      //     for (let base64String of res) {
+      //       let img = new Image();
+      //       img.src = "data:image/jpeg;base64," + base64String;
+      //       let dim = await new Promise(
+      //         (resolve) =>
+      //           (img.onload = () =>
+      //             resolve({
+      //               w: img.width,
+      //               h: img.height,
+      //             }))
+      //       );
+      //       let canvas = document.createElement("canvas");
+      //       canvas.width = dim.w;
+      //       canvas.height = dim.h;
+      //       canvas.getContext("2d").drawImage(img, 0, 0, dim.w, dim.h);
+      //       base64String = canvas.toDataURL("image/jpeg").replace(/^.+?,/, "");
+      //       let chars = atob(base64String);
+      //       let bytes = new Array(chars.length);
+      //       for (let i = 0; i < bytes.length; i++)
+      //         bytes[i] = chars.charCodeAt(i);
+      //       let byteArray = new Uint8Array(bytes);
+      //       let blob = new Blob([byteArray], { type: "image/jpeg" });
+      //       let fileOptions = { type: blob.type, size: blob.size };
+      //       let name = Math.floor(Math.random() * 100 + 1) + ".jpg";
+      //       transfer.items.add(new File([blob], name, fileOptions));
+      //     }
+      //     let firstImg = $(
+      //       ".listing-editor__image .listing-editor__edit-overlay"
+      //     );
+      //     console.log(firstImg);
+      //     if (firstImg.length > 0) {
+      //       console.log("if", firstImg);
+      //       firstImg.click();
+      //       let form = await waitForNode(
+      //         ".listing-editor__modal-image, .image-edit-modal"
+      //       );
+      //       let input = form.find('input[type="file"]')[0];
+      //       input.files = transfer.files;
+      //     }
+      //     let input = $('[type="file"]')[0];
+      //     input.files = transfer.files;
+      //     $(input).dispatch("change");
+      //     let imageForm = await waitForNode(
+      //       ".image-edit-modal, .listing-editor__modal-image",
+      //       5
+      //     );
+      //     let submitButton = await waitForNode(
+      //       " .btn.btn--primary",
+      //       5,
+      //       imageForm
+      //     );
+      //     if (submitButton) {
+      //       let previews = $(".listing-editor__covershot-thumb img");
+      //       for (let i = 0; i < previews.length; i++) {
+      //         let preview = previews.eq(i);
+      //         while (!preview[0].complete) await wait(50);
+      //       }
+      //       await wait(500);
+      //       submitButton.dispatch("click");
+      //     }
+      //   });
+      setTimeout(async () => {
+        $('[placeholder="What are you selling? (required)"]')
+          .val(value.data.title)
+          .dispatch("input");
+        $('[placeholder="Describe it! (required)"]')
+          .val(value.data.shortDescription)
+          .dispatch("input");
+        $('[placeholder="Enter the Brand/Designer"]')
+          .val(value.data.brand)
+          .dispatch("input");
+        let select = $('.dropdown__selector [data-et-name="color"]').parent();
+        select.dispatch("click");
+        let list = await waitForNode(".dropdown__menu", 999, select.parent());
+        let colors = list.find("li");
+        for (let i = 0; i < colors.length; i++) {
+          let li = colors.eq(i);
+          let color = li.text().replace(/\s+/g, "").toLowerCase();
+          if (color === value.data.colorShade.toLowerCase())
+            li.dispatch("click");
+        }
+        list.find("button").dispatch("click");
+        await waitForNode('[data-vv-name="originalPrice"]');
+        $('[data-vv-name="originalPrice"]')
+          .val(Math.round(value.data.msrp.replace("$", "")))
+          .dispatch("input");
+        await waitForNode('[data-vv-name="sku"]');
+        $('[data-vv-name="sku"]').val(value.data.sku).dispatch("input");
+        $('[data-vv-name="listingPrice"]')
+          .val(Math.round(value.data.price.replace("$", "")))
+          .dispatch("input");
+        let condButtons = $('h4:contains("Does this item have tags attached?")')
+          .parent()
+          .find("button");
+        if (value.data.condition == "New with tags")
+          condButtons.eq(0).dispatch("click");
+        else condButtons.eq(1).dispatch("click");
+      }, 2000);
+      port.postMessage({ poshmarkanswer1: "editingposhmark" });
+      // setTimeout(async () => {
+      //   $('[data-et-name="update"]').dispatch("click");
+      // }, 20000);
+
+      // setTimeout(async () => {
+      //   $('[data-et-name="list_item"]').dispatch("click");
+      // }, 25000);
+    });
+  }, 1500);
+}
+function toDataUrl(url, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.onload = function () {
+    var reader = new FileReader();
+    reader.onloadend = function () {
+      callback(reader.result);
+    };
+    reader.readAsDataURL(xhr.response);
+  };
+  xhr.open("GET", url, () => {
+    xhr.setRequestHeader("Access-Control-Allow-Origin", "*");
+  });
+
+  xhr.responseType = "blob";
+  xhr.send();
+}
+function crossset() {
+  setTimeout(() => {
+    chrome.storage.sync.get("editdata", async (value) => {
+      console.log(value.editdata);
+
+      if (value.editdata.site.from == "mercari") {
+        // toDataUrl(value.editdata.images[0], function (myBase64) {
+        //   console.log(myBase64); // myBase64 is the base64 string
+        // });
+        fetch("https://app.hammoq.com/images/crossimg", {
+          method: "POST",
+          body: JSON.stringify(value.editdata.images),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => {
+            return response.json();
+          })
+          .then(async (res) => {
+            //console.log(res);
+            let transfer = new DataTransfer();
+            for (let base64String of res) {
+              let img = new Image();
+              img.src = "data:image/jpeg;base64," + base64String;
+              let dim = await new Promise(
+                (resolve) =>
+                  (img.onload = () =>
+                    resolve({
+                      w: img.width,
+                      h: img.height,
+                    }))
+              );
+              let canvas = document.createElement("canvas");
+              canvas.width = dim.w;
+              canvas.height = dim.h;
+              canvas.getContext("2d").drawImage(img, 0, 0, dim.w, dim.h);
+              base64String = canvas
+                .toDataURL("image/jpeg")
+                .replace(/^.+?,/, "");
+              let chars = atob(base64String);
+              let bytes = new Array(chars.length);
+              for (let i = 0; i < bytes.length; i++)
+                bytes[i] = chars.charCodeAt(i);
+              let byteArray = new Uint8Array(bytes);
+              let blob = new Blob([byteArray], { type: "image/jpeg" });
+              let fileOptions = { type: blob.type, size: blob.size };
+              let name = Math.floor(Math.random() * 100 + 1) + ".jpg";
+              transfer.items.add(new File([blob], name, fileOptions));
+            }
+            let firstImg = $(
+              ".listing-editor__image .listing-editor__edit-overlay"
+            );
+            console.log(firstImg);
+            if (firstImg.length > 0) {
+              console.log("if", firstImg);
+              firstImg.click();
+              let form = await waitForNode(
+                ".listing-editor__modal-image, .image-edit-modal"
+              );
+              let input = form.find('input[type="file"]')[0];
+              input.files = transfer.files;
+            }
+            let input = $('[type="file"]')[0];
+            input.files = transfer.files;
+            $(input).dispatch("change");
+            let imageForm = await waitForNode(
+              ".image-edit-modal, .listing-editor__modal-image",
+              5
+            );
+            let submitButton = await waitForNode(
+              " .btn.btn--primary",
+              5,
+              imageForm
+            );
+            if (submitButton) {
+              let previews = $(".listing-editor__covershot-thumb img");
+              for (let i = 0; i < previews.length; i++) {
+                let preview = previews.eq(i);
+                while (!preview[0].complete) await wait(50);
+              }
+              await wait(500);
+              submitButton.dispatch("click");
+            }
+          });
+
+        setTimeout(async () => {
+          $('[placeholder="What are you selling? (required)"]')
+            .val(value.editdata.title)
+            .dispatch("input");
+          $('[placeholder="Describe it! (required)"]')
+            .val(value.editdata.description)
+            .dispatch("input");
+          $('[placeholder="Enter the Brand/Designer"]')
+            .val(value.editdata.brand)
+            .dispatch("input");
+          let select = $('.dropdown__selector [data-et-name="color"]').parent();
+          select.dispatch("click");
+          let list = await waitForNode(".dropdown__menu", 999, select.parent());
+          let colors = list.find("li");
+          for (let i = 0; i < colors.length; i++) {
+            let li = colors.eq(i);
+            let color = li.text().replace(/\s+/g, "").toLowerCase();
+            if (color === value.data.colorShade.toLowerCase())
+              li.dispatch("click");
+          }
+          list.find("button").dispatch("click");
+          await waitForNode('[data-vv-name="originalPrice"]');
+          $('[data-vv-name="originalPrice"]')
+            .val(Math.round(value.editdata.msrp.replace("$", "")))
+            .dispatch("input");
+          await waitForNode('[data-vv-name="sku"]');
+          $('[data-vv-name="sku"]').val(value.editdata.sku).dispatch("input");
+          $('[data-vv-name="listingPrice"]')
+            .val(Math.round(value.editdata.price.replace("$", "")))
+            .dispatch("input");
+          let condButtons = $(
+            'h4:contains("Does this item have tags attached?")'
+          )
+            .parent()
+            .find("button");
+          if (value.editdata.condition == "New with tags")
+            condButtons.eq(0).dispatch("click");
+          else condButtons.eq(1).dispatch("click");
+        }, 2000);
+
+        // setTimeout(async () => {
+        //   $('[data-et-name="next"]').dispatch("click");
+        // }, 20000);
+
+        // setTimeout(async () => {
+        //   $('[data-et-name="list_item"]').dispatch("click");
+        // }, 25000);
+      }
+
+      if (value.editdata.site.from == "ebay") {
+        chrome.storage.sync.get("ebayimg", (value) => {
+          console.log(value.ebayimg);
+
+          fetch("https://app.hammoq.com/images/crossimg", {
+            method: "POST",
+            body: JSON.stringify(value.ebayimg),
+            headers: {
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => {
+              return response.json();
+            })
+            .then(async (res) => {
+              console.log(res);
+              let transfer = new DataTransfer();
+              for (let base64String of res) {
+                let img = new Image();
+                img.src = "data:image/jpeg;base64," + base64String;
+                let dim = await new Promise(
+                  (resolve) =>
+                    (img.onload = () =>
+                      resolve({
+                        w: img.width,
+                        h: img.height,
+                      }))
+                );
+                let canvas = document.createElement("canvas");
+                canvas.width = dim.w;
+                canvas.height = dim.h;
+                canvas.getContext("2d").drawImage(img, 0, 0, dim.w, dim.h);
+                base64String = canvas
+                  .toDataURL("image/jpeg")
+                  .replace(/^.+?,/, "");
+                let chars = atob(base64String);
+                let bytes = new Array(chars.length);
+                for (let i = 0; i < bytes.length; i++)
+                  bytes[i] = chars.charCodeAt(i);
+                let byteArray = new Uint8Array(bytes);
+                let blob = new Blob([byteArray], { type: "image/jpeg" });
+                let fileOptions = { type: blob.type, size: blob.size };
+                let name = Math.floor(Math.random() * 100 + 1) + ".jpg";
+                transfer.items.add(new File([blob], name, fileOptions));
+              }
+              let firstImg = $(
+                ".listing-editor__image .listing-editor__edit-overlay"
+              );
+              console.log(firstImg);
+              if (firstImg.length > 0) {
+                console.log("if", firstImg);
+                firstImg.click();
+                let form = await waitForNode(
+                  ".listing-editor__modal-image, .image-edit-modal"
+                );
+                let input = form.find('input[type="file"]')[0];
+                input.files = transfer.files;
+              }
+              let input = $('[type="file"]')[0];
+              input.files = transfer.files;
+              $(input).dispatch("change");
+              let imageForm = await waitForNode(
+                ".image-edit-modal, .listing-editor__modal-image",
+                5
+              );
+              let submitButton = await waitForNode(
+                " .btn.btn--primary",
+                5,
+                imageForm
+              );
+              if (submitButton) {
+                let previews = $(".listing-editor__covershot-thumb img");
+                for (let i = 0; i < previews.length; i++) {
+                  let preview = previews.eq(i);
+                  while (!preview[0].complete) await wait(50);
+                }
+                await wait(500);
+                submitButton.dispatch("click");
+              }
+            });
+        });
+        setTimeout(async () => {
+          $('[placeholder="What are you selling? (required)"]')
+            .val(value.editdata.title)
+            .dispatch("input");
+          $('[placeholder="Describe it! (required)"]')
+            .val(value.editdata.description)
+            .dispatch("input");
+          $('[placeholder="Enter the Brand/Designer"]')
+            .val(value.editdata.brand)
+            .dispatch("input");
+          let select = $('.dropdown__selector [data-et-name="color"]').parent();
+          select.dispatch("click");
+          let list = await waitForNode(".dropdown__menu", 999, select.parent());
+          let colors = list.find("li");
+          for (let i = 0; i < colors.length; i++) {
+            let li = colors.eq(i);
+            let color = li.text().replace(/\s+/g, "").toLowerCase();
+            if (color === value.editdata.color.toLowerCase())
+              li.dispatch("click");
+          }
+          list.find("button").dispatch("click");
+          await waitForNode('[data-vv-name="originalPrice"]');
+          $('[data-vv-name="originalPrice"]')
+            .val(Math.round(value.editdata.msrp.replace("$", "")))
+            .dispatch("input");
+          await waitForNode('[data-vv-name="sku"]');
+          $('[data-vv-name="sku"]').val(value.editdata.SKU).dispatch("input");
+          $('[data-vv-name="listingPrice"]')
+            .val(Math.round(value.editdata.price.replace("$", "")))
+            .dispatch("input");
+          let condButtons = $(
+            'h4:contains("Does this item have tags attached?")'
+          )
+            .parent()
+            .find("button");
+          if (value.editdata.condition == "New with tags")
+            condButtons.eq(0).dispatch("click");
+          else condButtons.eq(1).dispatch("click");
+        }, 2000);
+
+        // setTimeout(async () => {
+        //   $('[data-et-name="next"]').dispatch("click");
+        // }, 20000);
+
+        // setTimeout(async () => {
+        //   $('[data-et-name="list_item"]').dispatch("click");
+        // }, 25000);
+      }
+
+      chrome.storage.sync.set({ editdata: {} }, () => {
+        chrome.storage.sync.get("editdata", (value) => {
+          console.log(value.editdata);
+        });
+      });
+    });
+  }, 2000);
+}

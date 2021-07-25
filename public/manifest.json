@@ -1,0 +1,179 @@
+{
+  "name": "Hammoq",
+  "version": "1.0",
+  "manifest_version": 2,
+  "browser_action": {
+    "default_popup": "index.html"
+  },
+  "content_scripts": [
+    {
+      "all_frames": true,
+      "matches": [
+        "*://*.hammoq.com/edit/*",
+        "http://localhost:3000/edit/*",
+        "*://*.avoidpoints.com/edit/*"
+      ],
+      "run_at": "document_start",
+      "js": ["./handlers/loader.js", "/hammoq/core.js"]
+    },
+    {
+      "all_frames": true,
+      "matches": [
+        "https://app.hammoq.com/form",
+        "http://localhost:3000/form",
+        "http://devcust.avoidpoints.com/form"
+      ],
+      "run_at": "document_start",
+      "js": ["./handlers/loader.js", "/hammoq/crossset.js"]
+    },
+
+    {
+      "all_frames": true,
+      "matches": [
+        "*://*.hammoq.com/product/*",
+        "http://localhost:3001/product/*",
+        "*://*.avoidpoints.com/*"
+      ],
+      "run_at": "document_start",
+      "js": ["./handlers/loader.js", "/hammoq/core.js"]
+    },
+
+    {
+      "all_frames": true,
+      "matches": ["https://*.ebay.com/*"],
+      "run_at": "document_start",
+      "js": ["./handlers/loader.js", "./ebay/core.js"]
+    },
+    {
+      "all_frames": true,
+      "matches": ["https://www.ebay.com/sh/lst/active"],
+      "run_at": "document_start",
+      "js": [
+        "./handlers/loader.js",
+        "./ebay/ebaydelist.js",
+        "./ebay/crosslisting.js"
+      ]
+    },
+    {
+      "all_frames": true,
+      "matches": [
+        "https://offer.ebay.com/ws/*",
+        "https://bulksell.ebay.com/*",
+        "https://www.picupload.ebay.com/*"
+      ],
+      "run_at": "document_start",
+      "js": [
+        "./handlers/loader.js",
+        "./ebay/ebaydelist2.js",
+        "./ebay/crossedit.js"
+      ]
+    },
+    {
+      "all_frames": true,
+      "matches": ["https://www.ebay.com/itm/*"],
+      "run_at": "document_start",
+      "js": ["./ebay/getimg.js", "./ebay/otherscross.js"]
+    },
+
+    {
+      "matches": [
+        "https://www.etsy.com/in-en/your/shops/*/onboarding/listings/*"
+      ],
+      "js": ["./handlers/loader.js", "/etsy/core.js"]
+    },
+
+    {
+      "matches": ["https://www.facebook.com/marketplace/"],
+      "js": ["./handlers/loader.js", "/fb/core.js"]
+    },
+    {
+      "matches": ["https://www.facebook.com/marketplace/selling/*"],
+      "js": ["/fb/fburl.js"]
+    },
+    {
+      "matches": ["https://www.facebook.com/marketplace/item/*"],
+      "js": ["./handlers/loader.js", "/fb/delist.js"]
+    },
+
+    {
+      "matches": [
+        "https://www.mercari.com/sell/",
+        "https://www.mercari.com/sell/edit/*"
+      ],
+      "js": ["./handlers/loader.js", "/mercari/core.js"]
+    },
+    {
+      "matches": ["https://www.mercari.com/us/item/*"],
+      "js": ["/mercari/url.js", "/mercari/delist.js"]
+    },
+    {
+      "matches": ["https://www.mercari.com/sell/edit/*"],
+      "js": [
+        "./handlers/loader.js",
+        "/mercari/delist2.js",
+        "/mercari/crossedit.js"
+      ]
+    },
+    {
+      "matches": ["https://www.mercari.com/mypage/listings/active/"],
+      "js": ["./handlers/loader.js", "/mercari/crosslisting.js"]
+    },
+    {
+      "matches": ["https://www.mercari.com/us/item/*"],
+      "js": ["./handlers/loader.js", "/mercari/otherscross.js"]
+    },
+
+    {
+      "matches": [
+        "https://poshmark.com/create-listing/*",
+        "https://poshmark.com/create-listing*",
+        "https://poshmark.com/edit-listing/*"
+      ],
+      "js": ["./handlers/loader.js", "/poshmark/core.js"]
+    },
+    {
+      "matches": ["https://poshmark.com/feed?created_listing_id=*"],
+      "js": ["/poshmark/feed.js"]
+    },
+    {
+      "matches": ["https://poshmark.com/closet/*"],
+      "js": [
+        "./handlers/loader.js",
+        "/poshmark/closet.js",
+        "/poshmark/crosslisting.js"
+      ]
+    },
+    {
+      "all_frames": true,
+      "matches": ["https://poshmark.com/edit-listing/*"],
+      "run_at": "document_start",
+      "js": [
+        "./handlers/loader.js",
+        "/poshmark/edit.js",
+        "/poshmark/crossedit.js"
+      ]
+    },
+    {
+      "matches": ["https://poshmark.com/edit-listing/*"],
+      "js": ["/poshmark/delete.js"]
+    },
+    {
+      "all_frames": true,
+      "matches": ["https://poshmark.com/listing/*"],
+      "run_at": "document_start",
+      "js": ["./handlers/loader.js", "/poshmark/otherscross.js"]
+    }
+  ],
+  "background": {
+    "scripts": ["./background/background.js"]
+  },
+  "permissions": ["tabs", "storage"],
+  "content_security_policy": "script-src 'self' 'sha256-ELkDE2InNI702G86lymxXYBdrcJq5bMn8+PhTgN6cks='; object-src 'self'",
+  "web_accessible_resources": [
+    "css/*",
+    "html/*",
+    "handlers/*",
+    "img/*",
+    "fonts/*"
+  ]
+}
